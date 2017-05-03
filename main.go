@@ -9,10 +9,32 @@ import (
 	"strings"
 )
 
-// Make request to tureng.com and return document
-func getDocument(text string) (*goquery.Document, error) {
+type Translation struct {
+	Type string // Word type(verb, noun, adj, adv)
+	Text string
+}
 
-	userAgent := "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0"
+type TranslationResponse struct {
+	FromLang     string
+	Text         string // Searched text
+	Translations []Translation
+	TotalCount   int // Keeps found total translation count in grabbed document
+}
+
+type Config struct {
+	FromLang string
+	MaxCount int // Max grabbing count
+}
+
+type Tureng struct {
+	Config Config
+}
+
+var userAgent = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0"
+
+// Make request to tureng.com and return scraped document
+func (tureng Tureng) getDocument(text string) (*goquery.Document, error) {
+
 	url := fmt.Sprintf("http://www.tureng.com/en/turkish-english/%s", text)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -30,25 +52,34 @@ func getDocument(text string) (*goquery.Document, error) {
 	return goquery.NewDocumentFromResponse(res)
 }
 
-// Translate given text and print
-func translate(text string) {
-	doc, err := getDocument(text)
+//
+func (tureng Tureng) translate(text string) (result TranslationResponse, err error) {
+
+	doc, err := tureng.getDocument(text)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	result = TranslationResponse{Text: text}
+
 	trElems := doc.Find("table.searchResultsTable").Eq(0).Find("tbody tr")
 
 	// Check if translating from English or Turkish
 	// Find translation language
-	isFromEng := true
+	result.FromLang = "en"
 	if trElems.Eq(0).Find(".c2").Text() == "Turkish" {
-		isFromEng = false
+		result.FromLang = "tr"
 	}
 
-	trElems = trElems.Not(".mobile-category-row").Not("[style]").Slice(0, 10)
+	trElems = trElems.Not(".mobile-category-row").Not("[style]")
+	result.TotalCount = trElems.Length()
 	trElems.Each(func(i int, s *goquery.Selection) {
+		if len(result.Translations) > tureng.Config.MaxCount {
+			return
+		}
+
+		trans := Translation{}
 		en := s.Find("td[lang=en]").Find("a").Text()
 		tr := s.Find("td[lang=tr]").Find("a").Text()
 
@@ -56,21 +87,16 @@ func translate(text string) {
 			return
 		}
 
-		wordType := strings.TrimSpace(s.Find("td[lang=en]").Find("i").Text())
-		if wordType == "" {
-			if isFromEng {
-				fmt.Printf("%s - %s\n", en, tr)
-			} else {
-				fmt.Printf("%s - %s\n", tr, en)
-			}
+		trans.Type = strings.TrimSpace(s.Find("td[lang=en]").Find("i").Text())
+		if result.FromLang == "en" {
+			trans.Text = tr
 		} else {
-			if isFromEng {
-				fmt.Printf("%s(%s) - %s\n", en, wordType, tr)
-			} else {
-				fmt.Printf("%s - %s(%s)\n", tr, en, wordType)
-			}
+			trans.Text = en
 		}
+		result.Translations = append(result.Translations, trans)
 	})
+
+	return
 }
 
 func main() {
@@ -80,5 +106,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	translate(text)
+	conf := &Config{MaxCount: 3}
+	tureng := &Tureng{Config: *conf}
+
+	result, err := tureng.translate(text)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, trans := range result.Translations {
+		if trans.Type != "" {
+			fmt.Printf("%s - %s (%s)\n", result.Text, trans.Text, trans.Type)
+		} else {
+			fmt.Printf("%s - %s\n", trans.Text)
+		}
+	}
+
+	fmt.Printf("===========\nTotal: %d\n", result.TotalCount)
 }
