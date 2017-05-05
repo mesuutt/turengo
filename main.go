@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
@@ -75,7 +76,7 @@ func (tureng Tureng) translate(text string) (result TranslationResponse, err err
 	trElems = trElems.Not(".mobile-category-row").Not("[style]")
 	result.TotalCount = trElems.Length()
 	trElems.Each(func(i int, s *goquery.Selection) {
-		if len(result.Translations) > tureng.Config.MaxCount {
+		if len(result.Translations) >= tureng.Config.MaxCount {
 			return
 		}
 
@@ -99,14 +100,26 @@ func (tureng Tureng) translate(text string) (result TranslationResponse, err err
 	return
 }
 
-func main() {
-	text := os.Args[1]
+func printUsage() {
+	fmt.Printf("Usage: %s TEXT \n", os.Args[0])
+	flag.PrintDefaults()
+}
 
-	if text == "" {
+func main() {
+
+	var maxCount = flag.Int("l", 6, "Shown translation limit")
+
+	flag.Usage = printUsage
+	flag.Parse()
+
+	if flag.NArg() == 0 {
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	conf := &Config{MaxCount: 3}
+	text := strings.Join(flag.Args(), " ")
+
+	conf := &Config{MaxCount: *maxCount}
 	tureng := &Tureng{Config: *conf}
 
 	result, err := tureng.translate(text)
