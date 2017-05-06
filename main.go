@@ -74,7 +74,15 @@ func (tureng Tureng) translate(text string) (result TranslationResponse, err err
 	}
 
 	trElems = trElems.Not(".mobile-category-row").Not("[style]")
-	result.TotalCount = trElems.Length()
+
+	if trElems.Length() == 0 {
+		return result, nil
+
+	}
+
+	// There is a header row in trElems. So subtract it from TotalCount
+	result.TotalCount = trElems.Length() - 1
+
 	trElems.Each(func(i int, s *goquery.Selection) {
 		if len(result.Translations) >= tureng.Config.MaxCount {
 			return
@@ -127,13 +135,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, trans := range result.Translations {
-		if trans.Type != "" {
-			fmt.Printf("%s - %s (%s)\n", result.Text, trans.Text, trans.Type)
-		} else {
-			fmt.Printf("%s - %s\n", trans.Text)
+	if result.TotalCount == 0 {
+		fmt.Printf("There is no translation found\n")
+		tureng.getSuggestions()
+	} else {
+		for _, trans := range result.Translations {
+			if trans.Type != "" {
+				fmt.Printf("%s - %s (%s)\n", result.Text, trans.Text, trans.Type)
+			} else {
+				fmt.Printf("%s - %s\n", trans.Text)
+			}
 		}
-	}
 
-	fmt.Printf("===========\nTotal: %d\n", result.TotalCount)
+		fmt.Printf("===========\nTotal: %d\n", result.TotalCount)
+	}
 }
