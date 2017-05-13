@@ -61,7 +61,7 @@ func (trans *Translation) WordTypeShortDisplay() string {
 
 var userAgent = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0"
 
-// Make request to tureng.com and return scraped document
+// Make request to tureng.com and return grabbed document
 func (tureng *Tureng) getDocument(text string) (*goquery.Document, error) {
 
 	url := fmt.Sprintf("http://www.tureng.com/en/turkish-english/%s", text)
@@ -81,7 +81,8 @@ func (tureng *Tureng) getDocument(text string) (*goquery.Document, error) {
 	return goquery.NewDocumentFromResponse(res)
 }
 
-func (tureng *Tureng) translate(text string) (result Content, err error) {
+// Translate given text
+func (tureng *Tureng) Translate(text string) (result Content, err error) {
 
 	doc, err := tureng.getDocument(text)
 	tureng.Document = doc
@@ -155,7 +156,7 @@ func (tureng *Tureng) translate(text string) (result Content, err error) {
 	return
 }
 
-func (tureng *Tureng) getSuggestions() []string {
+func (tureng *Tureng) GetSuggestions() []string {
 	suggestions := []string{}
 	tureng.Document.Find(".suggestion-list a").Each(func(i int, s *goquery.Selection) {
 		suggestions = append(suggestions, s.Text())
@@ -207,7 +208,7 @@ func main() {
 
 	tureng := &Tureng{Config: *conf}
 	text := strings.Join(flag.Args(), " ")
-	result, err := tureng.translate(text)
+	result, err := tureng.Translate(text)
 
 	if err != nil {
 		log.Fatal(err)
@@ -215,7 +216,7 @@ func main() {
 
 	if result.ResultCount == 0 {
 		fmt.Printf("There is no translation found for '%s' \n", text)
-		suggs := tureng.getSuggestions()
+		suggs := tureng.GetSuggestions()
 
 		if len(suggs) > 0 {
 			fmt.Printf("\n==== Suggestions ====\n")
