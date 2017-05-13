@@ -10,26 +10,54 @@ import (
 	"strings"
 )
 
+type WordType uint8
+
+// Word type consts
+const (
+	NOUN WordType = iota + 1
+	VERB
+	ADJECTIVE
+	ADVERB
+	OTHER
+)
+
 type Translation struct {
-	Type string // Word type(verb, noun, adj, adv)
+	Type WordType // Word type(VERB, NOUN, ADJACTIVE, ADVERB)
 	Text string
 }
 
-type TranslationResponse struct {
+type Content struct {
 	FromLang     string
 	Text         string // Searched text
 	Translations []Translation
-	TotalCount   int // Keeps found total translation count in grabbed document
+	ResultCount  int // Keeps found total translation count in grabbed document
 }
 
 type Config struct {
-	FromLang string
-	MaxCount int // Max grabbing count
+	FromLang        string
+	DisplayCount    int // Max display count
+	WordTypeFilters []WordType
 }
 
 type Tureng struct {
 	Config   Config
 	Document *goquery.Document
+}
+
+func (trans *Translation) WordTypeShortDisplay() string {
+	wordType := trans.Type
+	switch wordType {
+	case NOUN:
+		return "n."
+	case VERB:
+		return "v."
+	case ADJECTIVE:
+		return "adj."
+	case ADVERB:
+		return "adv."
+	default:
+		return ""
+	}
 }
 
 var userAgent = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0"
@@ -54,7 +82,7 @@ func (tureng *Tureng) getDocument(text string) (*goquery.Document, error) {
 	return goquery.NewDocumentFromResponse(res)
 }
 
-func (tureng *Tureng) translate(text string) (result TranslationResponse, err error) {
+func (tureng *Tureng) translate(text string) (result Content, err error) {
 
 	doc, err := tureng.getDocument(text)
 	tureng.Document = doc
@@ -63,7 +91,7 @@ func (tureng *Tureng) translate(text string) (result TranslationResponse, err er
 		log.Fatal(err)
 	}
 
-	result = TranslationResponse{Text: text}
+	result = Content{Text: text}
 
 	trElems := doc.Find("table.searchResultsTable").Eq(0).Find("tbody tr")
 
@@ -82,10 +110,10 @@ func (tureng *Tureng) translate(text string) (result TranslationResponse, err er
 	}
 
 	// There is a header row in trElems. So subtract it from TotalCount
-	result.TotalCount = trElems.Length() - 1
+	result.ResultCount = trElems.Length() - 1
 
 	trElems.Each(func(i int, s *goquery.Selection) {
-		if len(result.Translations) >= tureng.Config.MaxCount {
+		if len(result.Translations) >= tureng.Config.DisplayCount {
 			return
 		}
 
@@ -97,13 +125,30 @@ func (tureng *Tureng) translate(text string) (result TranslationResponse, err er
 			return
 		}
 
-		trans.Type = strings.TrimSpace(s.Find("td[lang=en]").Find("i").Text())
+		wordTypeStr := strings.TrimSpace(s.Find("td[lang=en]").Find("i").Text())
+		switch wordTypeStr {
+		case "v.":
+			trans.Type = VERB
+		case "n.":
+			trans.Type = NOUN
+		case "adj.":
+			trans.Type = ADJECTIVE
+		default:
+			trans.Type = OTHER
+		}
+
 		if result.FromLang == "en" {
 			trans.Text = tr
 		} else {
 			trans.Text = en
 		}
-		result.Translations = append(result.Translations, trans)
+
+		for _, wordType := range tureng.Config.WordTypeFilters {
+			if trans.Type == wordType {
+				result.Translations = append(result.Translations, trans)
+			}
+		}
+
 	})
 
 	return
@@ -125,7 +170,11 @@ func printUsage() {
 
 func main() {
 
-	var maxCount = flag.Int("l", 6, "Shown translation limit")
+	displayCount := flag.Int("c", 6, "Max display count")
+	includeVerbsPtr := flag.Bool("v", false, "Filter verbs")
+	includeNounsPtr := flag.Bool("n", false, "Filter nouns")
+	includeAdverbsPtr := flag.Bool("adv", false, "Filter adverbs")
+	includeAdjectivesPtr := flag.Bool("adj", false, "Filter adjectives")
 
 	flag.Usage = printUsage
 	flag.Parse()
@@ -135,21 +184,39 @@ func main() {
 		os.Exit(1)
 	}
 
-	text := strings.Join(flag.Args(), " ")
+	conf := &Config{
+		DisplayCount: *displayCount,
+	}
 
-	conf := &Config{MaxCount: *maxCount}
+	if *includeVerbsPtr {
+		conf.WordTypeFilters = append(conf.WordTypeFilters, VERB)
+	}
+	if *includeNounsPtr {
+		conf.WordTypeFilters = append(conf.WordTypeFilters, NOUN)
+	}
+	if *includeAdjectivesPtr {
+		conf.WordTypeFilters = append(conf.WordTypeFilters, ADJECTIVE)
+	}
+	if *includeAdverbsPtr {
+		conf.WordTypeFilters = append(conf.WordTypeFilters, ADVERB)
+	}
+	if len(conf.WordTypeFilters) == 0 {
+		conf.WordTypeFilters = []WordType{VERB, NOUN, ADJECTIVE, ADVERB, OTHER}
+	}
+
 	tureng := &Tureng{Config: *conf}
-
+	text := strings.Join(flag.Args(), " ")
 	result, err := tureng.translate(text)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if result.TotalCount == 0 {
-		fmt.Printf("There is no translation found\n")
+	if result.ResultCount == 0 {
+		fmt.Printf("There is no translation found for '%s' \n", text)
 		suggs := tureng.getSuggestions()
 
-		if (len(suggs) > 0) {
+		if len(suggs) > 0 {
 			fmt.Printf("\n==== Suggestions ====\n")
 			for _, item := range suggs {
 				fmt.Printf("%v\n", item)
@@ -157,13 +224,13 @@ func main() {
 		}
 	} else {
 		for _, trans := range result.Translations {
-			if trans.Type != "" {
-				fmt.Printf("%s - %s (%s)\n", result.Text, trans.Text, trans.Type)
+			if trans.Type != OTHER {
+				fmt.Printf("%s - %s (%s)\n", result.Text, trans.Text, trans.WordTypeShortDisplay())
 			} else {
-				fmt.Printf("%s - %s\n", trans.Text)
+				fmt.Printf("%s - %s\n", result.Text, trans.Text)
 			}
 		}
 
-		fmt.Printf("===========\nTotal: %d\n", result.TotalCount)
+		fmt.Printf("===========\nTotal: %d\n", result.ResultCount)
 	}
 }
