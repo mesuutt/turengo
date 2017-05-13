@@ -132,6 +132,8 @@ func (tureng *Tureng) translate(text string) (result Content, err error) {
 			trans.Type = NOUN
 		case "adj.":
 			trans.Type = ADJECTIVE
+		case "adv.":
+			trans.Type = ADVERB
 		default:
 			trans.Type = OTHER
 		}
