@@ -1,4 +1,5 @@
 ### Turengo
+---
 
 Translate text using [tureng.com](tureng.com) from your terminal.
 
@@ -17,7 +18,7 @@ turengo Hello world
 
 #### See in action
 
-[![See in action](https://asciinema.org/a/1no3yw3bxar9s4d09gc5auks2.png)](https://asciinema.org/a/1no3yw3bxar9s4d09gc5auks2)
+[![See in action](https://asciinema.org/a/798xoun3q66mbqxpm5gmmrl07.png)](https://asciinema.org/a/798xoun3q66mbqxpm5gmmrl07?speed=1.5)
 
 
 ### License
