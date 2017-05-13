@@ -45,8 +45,7 @@ type Tureng struct {
 }
 
 func (trans *Translation) WordTypeShortDisplay() string {
-	wordType := trans.Type
-	switch wordType {
+	switch trans.Type {
 	case NOUN:
 		return "n."
 	case VERB:
@@ -170,7 +169,7 @@ func printUsage() {
 
 func main() {
 
-	displayCount := flag.Int("c", 6, "Max display count")
+	displayCount := flag.Int("c", 10, "Max display count")
 	includeVerbsPtr := flag.Bool("v", false, "Filter verbs")
 	includeNounsPtr := flag.Bool("n", false, "Filter nouns")
 	includeAdverbsPtr := flag.Bool("adv", false, "Filter adverbs")
@@ -224,13 +223,13 @@ func main() {
 		}
 	} else {
 		for _, trans := range result.Translations {
-			if trans.Type != OTHER {
-				fmt.Printf("%s - %s (%s)\n", result.Text, trans.Text, trans.WordTypeShortDisplay())
-			} else {
+			if trans.Type == OTHER {
 				fmt.Printf("%s - %s\n", result.Text, trans.Text)
+			} else {
+				fmt.Printf("%s - %s (%s)\n", result.Text, trans.Text, trans.WordTypeShortDisplay())
 			}
 		}
 
-		fmt.Printf("===========\nTotal: %d\n", result.ResultCount)
+		fmt.Printf("===== [ Total: %d ] =====\n", result.ResultCount)
 	}
 }
