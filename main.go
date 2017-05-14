@@ -72,11 +72,11 @@ func (tureng *Tureng) getDocument(text string) (*goquery.Document, error) {
 
 	req.Header.Set("User-Agent", userAgent)
 	res, err := http.DefaultClient.Do(req)
-	defer res.Body.Close()
 
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 
 	return goquery.NewDocumentFromResponse(res)
 }
