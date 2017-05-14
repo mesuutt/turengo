@@ -1,0 +1,14 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  override:
+  # Remove cached Go sources
+  - rm -rf $HOME/.go_workspace
+  - go get github.com/PuerkitoBio/goquery
+
+test:
+  override:
+  - go vet ./...
+  - go test -cover ./...

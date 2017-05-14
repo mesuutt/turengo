@@ -1,4 +1,7 @@
 ### Turengo
+
+[![CircleCI](https://circleci.com/gh/mesuutt/turengo.svg?style=svg)](https://circleci.com/gh/mesuutt/turengo)
+
 ---
 
 Translate text using [tureng.com](tureng.com) from your terminal.
