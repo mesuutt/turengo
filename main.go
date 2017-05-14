@@ -18,7 +18,7 @@ const (
 	VERB
 	ADJECTIVE
 	ADVERB
-	OTHER
+	UNKNOWN
 )
 
 type Translation struct {
@@ -136,7 +136,7 @@ func (tureng *Tureng) Translate(text string) (result Content, err error) {
 		case "adv.":
 			trans.Type = ADVERB
 		default:
-			trans.Type = OTHER
+			trans.Type = UNKNOWN
 		}
 
 		if result.FromLang == "en" {
@@ -203,7 +203,7 @@ func main() {
 		conf.WordTypeFilters = append(conf.WordTypeFilters, ADVERB)
 	}
 	if len(conf.WordTypeFilters) == 0 {
-		conf.WordTypeFilters = []WordType{VERB, NOUN, ADJECTIVE, ADVERB, OTHER}
+		conf.WordTypeFilters = []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN}
 	}
 
 	tureng := &Tureng{Config: *conf}
@@ -226,7 +226,7 @@ func main() {
 		}
 	} else {
 		for _, trans := range result.Translations {
-			if trans.Type == OTHER {
+			if trans.Type == UNKNOWN {
 				fmt.Printf("%s - %s\n", result.Text, trans.Text)
 			} else {
 				fmt.Printf("%s - %s (%s)\n", result.Text, trans.Text, trans.WordTypeShortDisplay())
