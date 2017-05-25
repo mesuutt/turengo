@@ -14,7 +14,7 @@ If you simply want to use turengo command, please download binary from below.
 
 [https://github.com/mesuutt/turengo/releases](https://github.com/mesuutt/turengo/releases)
 
-#### Build
+#### Install (or update)
 
 ```
 go get -u github.com/mesuutt/turengo
