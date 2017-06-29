@@ -8,13 +8,7 @@ Translate text using [tureng.com](tureng.com) from your terminal.
 
 ### Installation
 
-#### Simply use "turengo" command
-
-If you simply want to use turengo command, please download binary from below.
-
-[https://github.com/mesuutt/turengo/releases](https://github.com/mesuutt/turengo/releases)
-
-#### Install (or update)
+Grab a [binary](https://github.com/mesuutt/turengo/releases) or: 
 
 ```
 go get -u github.com/mesuutt/turengo
