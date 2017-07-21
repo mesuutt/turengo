@@ -25,15 +25,24 @@ const (
 
 type Translation struct {
 	Type     WordType // Word type(VERB, NOUN, ADJACTIVE, ADVERB)
-	Text     string
+	Text     string   // Translation text
+	Meaning  string   // Meaning of text
 	Category string
 }
 
-type Content struct {
-	FromLang     string
-	Text         string // Searched text
+// There are two type of translation group
+// First word meaning, second meanings of word in other terms
+type TranslationGroup struct {
+	Title        string
 	Translations []Translation
-	ResultCount  int // Keeps found total translation count in grabbed document
+	ResultCount  int // Keeps found total translation count in translation group
+}
+
+type Content struct {
+	FromLang          string
+	Text              string // Searched text
+	ResultCount       int    // Keeps found total translation count in grabbed document
+	TranslationGroups []TranslationGroup
 }
 
 type Config struct {
@@ -96,64 +105,74 @@ func (tureng *Tureng) Translate(text string) (result Content, err error) {
 
 	result = Content{Text: text}
 
-	trElems := doc.Find("table.searchResultsTable").Eq(0).Find("tbody tr")
-
-	// Check if translating from English or Turkish
 	// Find translation language
 	result.FromLang = "en"
-	if trElems.Eq(0).Find(".c2").Text() == "Turkish" {
+
+	if doc.Find("table.searchResultsTable tbody tr").Eq(0).Find(".c2").Text() == "Turkish" {
 		result.FromLang = "tr"
 	}
 
-	trElems = trElems.Not(".mobile-category-row").Not("[style]")
+	// There is a header row in each translation group table. So subtract it from ResultCount
+	result.ResultCount = doc.Find("table.searchResultsTable tbody tr").Length() - doc.Find("table.searchResultsTable").Length()
 
-	if trElems.Length() == 0 {
+	if result.ResultCount <= 0 {
 		return result, nil
-
 	}
 
-	// There is a header row in trElems. So subtract it from TotalCount
-	result.ResultCount = trElems.Length() - 1
+	totalGrabbedTranslationCount := 0
+	doc.Find("table.searchResultsTable").Each(func(i int, s *goquery.Selection) {
+		group := TranslationGroup{}
 
-	trElems.Each(func(i int, s *goquery.Selection) {
-		if len(result.Translations) >= tureng.Config.DisplayCount {
-			return
-		}
+		trElems := s.Find("tbody tr").Not(".mobile-category-row").Not("[style]")
 
-		trans := Translation{}
-		trans.Category = s.Find("td").Eq(1).Text()
-		en := s.Find("td[lang=en]").Find("a").Text()
-		tr := s.Find("td[lang=tr]").Find("a").Text()
-		if en == "" {
-			return
-		}
+		// There is a header row in tbody. So subtract it from ResultCount
+		group.ResultCount = trElems.Length() - 1
 
-		wordTypeStr := strings.TrimSpace(s.Find("td[lang=en]").Find("i").Text())
-		switch wordTypeStr {
-		case "v.":
-			trans.Type = VERB
-		case "n.":
-			trans.Type = NOUN
-		case "adj.":
-			trans.Type = ADJECTIVE
-		case "adv.":
-			trans.Type = ADVERB
-		default:
-			trans.Type = UNKNOWN
-		}
-
-		if result.FromLang == "en" {
-			trans.Text = tr
-		} else {
-			trans.Text = en
-		}
-
-		for _, wordType := range tureng.Config.WordTypeFilters {
-			if trans.Type == wordType {
-				result.Translations = append(result.Translations, trans)
+		trElems.Each(func(i int, s *goquery.Selection) {
+			if totalGrabbedTranslationCount > tureng.Config.DisplayCount {
+				return
 			}
-		}
+			totalGrabbedTranslationCount += 1
 
+			trans := Translation{}
+			trans.Category = s.Find("td").Eq(1).Text()
+			en := s.Find("td[lang=en]").Find("a").Text()
+			tr := s.Find("td[lang=tr]").Find("a").Text()
+			if en == "" {
+				return
+			}
+
+			wordTypeStr := strings.TrimSpace(s.Find("td[lang=en]").Find("i").Text())
+			switch wordTypeStr {
+			case "v.":
+				trans.Type = VERB
+			case "n.":
+				trans.Type = NOUN
+			case "adj.":
+				trans.Type = ADJECTIVE
+			case "adv.":
+				trans.Type = ADVERB
+			default:
+				trans.Type = UNKNOWN
+			}
+
+			if result.FromLang == "en" {
+				trans.Meaning = tr
+				trans.Text = en
+			} else {
+				trans.Meaning = en
+				trans.Text = tr
+			}
+
+			for _, wordType := range tureng.Config.WordTypeFilters {
+				if trans.Type == wordType {
+					group.Translations = append(group.Translations, trans)
+				}
+			}
+
+		})
+
+		result.TranslationGroups = append(result.TranslationGroups, group)
 	})
 
 	return
@@ -229,11 +248,13 @@ func main() {
 		}
 	} else {
 		output := []string{}
-		for _, trans := range pageContent.Translations {
-			if trans.Type == UNKNOWN {
-				output = append(output, fmt.Sprintf("%s | %s | %s\n", trans.Category, pageContent.Text, trans.Text))
-			} else {
-				output = append(output, fmt.Sprintf("%s | %s | %s (%s)\n", trans.Category, pageContent.Text, trans.Text, trans.WordTypeShortDisplay()))
+		for _, group := range pageContent.TranslationGroups {
+			for _, trans := range group.Translations {
+				if trans.Type == UNKNOWN {
+					output = append(output, fmt.Sprintf("%s | %s | %s\n", trans.Category, trans.Text, trans.Meaning))
+				} else {
+					output = append(output, fmt.Sprintf("%s | %s | %s (%s)\n", trans.Category, trans.Text, trans.Meaning, trans.WordTypeShortDisplay()))
+				}
 			}
 		}
 
