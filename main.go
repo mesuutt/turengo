@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type WordType uint8
@@ -22,8 +23,9 @@ const (
 )
 
 type Translation struct {
-	Type WordType // Word type(VERB, NOUN, ADJACTIVE, ADVERB)
-	Text string
+	Type     WordType // Word type(VERB, NOUN, ADJACTIVE, ADVERB)
+	Text     string
+	Category string
 }
 
 type Content struct {
@@ -118,9 +120,9 @@ func (tureng *Tureng) Translate(text string) (result Content, err error) {
 		}
 
 		trans := Translation{}
+		trans.Category = s.Find("td").Eq(1).Text()
 		en := s.Find("td[lang=en]").Find("a").Text()
 		tr := s.Find("td[lang=tr]").Find("a").Text()
-
 		if en == "" {
 			return
 		}
@@ -227,9 +229,9 @@ func main() {
 	} else {
 		for _, trans := range result.Translations {
 			if trans.Type == UNKNOWN {
-				fmt.Printf("%s - %s\n", result.Text, trans.Text)
+				fmt.Printf("%s - %s - %s\n", trans.Category, result.Text, trans.Text)
 			} else {
-				fmt.Printf("%s - %s (%s)\n", result.Text, trans.Text, trans.WordTypeShortDisplay())
+				fmt.Printf("%s - %s - %s (%s)\n", trans.Category, result.Text, trans.Text, trans.WordTypeShortDisplay())
 			}
 		}
 
