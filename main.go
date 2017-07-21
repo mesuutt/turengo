@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/ryanuber/columnize"
 )
 
 type WordType uint8
@@ -210,13 +211,13 @@ func main() {
 
 	tureng := &Tureng{Config: *conf}
 	text := strings.Join(flag.Args(), " ")
-	result, err := tureng.Translate(text)
+	pageContent, err := tureng.Translate(text)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if result.ResultCount == 0 {
+	if pageContent.ResultCount == 0 {
 		fmt.Printf("There is no translation found for '%s' \n", text)
 		suggs := tureng.GetSuggestions()
 
@@ -227,14 +228,16 @@ func main() {
 			}
 		}
 	} else {
-		for _, trans := range result.Translations {
+		output := []string{}
+		for _, trans := range pageContent.Translations {
 			if trans.Type == UNKNOWN {
-				fmt.Printf("%s - %s - %s\n", trans.Category, result.Text, trans.Text)
+				output = append(output, fmt.Sprintf("%s | %s | %s\n", trans.Category, pageContent.Text, trans.Text))
 			} else {
-				fmt.Printf("%s - %s - %s (%s)\n", trans.Category, result.Text, trans.Text, trans.WordTypeShortDisplay())
+				output = append(output, fmt.Sprintf("%s | %s | %s (%s)\n", trans.Category, pageContent.Text, trans.Text, trans.WordTypeShortDisplay()))
 			}
 		}
 
-		fmt.Printf("===== [ Total: %d ] =====\n", result.ResultCount)
+		fmt.Println(columnize.SimpleFormat(output))
+		fmt.Printf("===== [ Total: %d ] =====\n", pageContent.ResultCount)
 	}
 }
