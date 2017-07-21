@@ -56,7 +56,7 @@ func TestGettingMeaningOfWordWithOtherTerms(t *testing.T) {
 	result, _ := tureng.Translate(text)
 
 	if len(result.TranslationGroups[1].Translations) == 0 {
-		t.Errorf("Should be other meanings of '%s' exists. But not found")
+		t.Errorf("Should be other meanings of '%s' exists. But not found", text)
 	}
 }
 
