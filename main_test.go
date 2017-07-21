@@ -20,8 +20,8 @@ func TestDisplayCount(t *testing.T) {
 	tureng := &Tureng{Config: *conf}
 	result, _ := tureng.Translate(text)
 
-	if len(result.Translations) != displayCount {
-		t.Errorf("Result count should not be greater than %d. %d", displayCount, len(result.Translations))
+	if len(result.TranslationGroups[0].Translations) != displayCount {
+		t.Errorf("Result count should not be greater than %d. %d", displayCount, len(result.TranslationGroups[0].Translations))
 	}
 }
 
@@ -37,12 +37,26 @@ func TestTranslate(t *testing.T) {
 	tureng := &Tureng{Config: *conf}
 	result, _ := tureng.Translate(text)
 
-	if len(result.Translations) == 0 {
-		t.Errorf("Result count should not be greater than %d. %d", displayCount, len(result.Translations))
+	if len(result.TranslationGroups[0].Translations) == 0 {
+		t.Errorf("Result count should not be greater than %d. %d", displayCount, len(result.TranslationGroups[0].Translations))
 	}
 
-	if result.ResultCount == 0 {
+	if len(result.TranslationGroups[0].Translations) == 0 {
 		t.Errorf("ResultCount of '%s' translation should be greater than 0", text)
+	}
+}
+
+func TestGettingMeaningOfWordWithOtherTerms(t *testing.T) {
+	conf := &Config{
+		DisplayCount:    100,
+		WordTypeFilters: []WordType{VERB}, // Get only verbs
+	}
+
+	tureng := &Tureng{Config: *conf}
+	result, _ := tureng.Translate(text)
+
+	if len(result.TranslationGroups[1].Translations) == 0 {
+		t.Errorf("Should be other meanings of '%s' exists. But not found")
 	}
 }
 
@@ -56,7 +70,7 @@ func TestWordTypeFiltering(t *testing.T) {
 	tureng := &Tureng{Config: *conf}
 	result, _ := tureng.Translate(text)
 
-	if len(result.Translations) != 6 {
+	if len(result.TranslationGroups[0].Translations) != 6 {
 		t.Errorf("Translation result count should equal to 6")
 	}
 
@@ -67,7 +81,7 @@ func TestWordTypeFiltering(t *testing.T) {
 	tureng = &Tureng{Config: *conf}
 	result, _ = tureng.Translate(text)
 
-	if len(result.Translations) != 0 {
+	if len(result.TranslationGroups[0].Translations) != 0 {
 		t.Errorf("Translation result count should equal to 0")
 	}
 }
@@ -82,7 +96,7 @@ func TestGettingSuggestions(t *testing.T) {
 	tureng := &Tureng{Config: *conf}
 	result, _ := tureng.Translate("happyoooo")
 
-	if len(result.Translations) > 0 {
+	if len(result.TranslationGroups) > 0 {
 		t.Errorf("Translation result count should equal to 0")
 	}
 
