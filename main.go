@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -194,7 +195,9 @@ func printUsage() {
 
 func main() {
 
-	displayCount := flag.Int("c", 10, "Max display count")
+	defaultDisplatCount := 10
+
+	displayCount := flag.Int("c", defaultDisplatCount, "Max display count")
 	includeVerbsPtr := flag.Bool("v", false, "Filter verbs")
 	includeNounsPtr := flag.Bool("n", false, "Filter nouns")
 	includeAdverbsPtr := flag.Bool("adv", false, "Filter adverbs")
@@ -210,6 +213,14 @@ func main() {
 
 	conf := &Config{
 		DisplayCount: *displayCount,
+	}
+
+	// Read displayCount from ENV if flag not specified and env var exists
+	if *displayCount == defaultDisplatCount {
+		if dc := os.Getenv("TURENGO_DEFAULT_DISPLAY_COUNT"); dc != "" {
+			i, _ := strconv.Atoi(dc)
+			conf.DisplayCount = i
+		}
 	}
 
 	if *includeVerbsPtr {
