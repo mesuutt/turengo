@@ -113,35 +113,37 @@ func (tureng *Tureng) Translate(text string) (result Content, err error) {
 		result.FromLang = "tr"
 	}
 
+	tables := doc.Find("table.searchResultsTable")
+
 	// There is a header row in each translation group table. So subtract it from ResultCount
-	result.ResultCount = doc.Find("table.searchResultsTable tbody tr").Length() - doc.Find("table.searchResultsTable").Length()
+	result.ResultCount = tables.Find("tbody tr").Not(".mobile-category-row").Not("[style]").Length() - tables.Length()
 
 	if result.ResultCount <= 0 {
 		return result, nil
 	}
 
 	totalGrabbedTranslationCount := 0
-	doc.Find("table.searchResultsTable").Each(func(i int, s *goquery.Selection) {
+	tables.Each(func(i int, s *goquery.Selection) {
 		group := TranslationGroup{}
 
 		trElems := s.Find("tbody tr").Not(".mobile-category-row").Not("[style]")
-
-		// There is a header row in tbody. So subtract it from ResultCount
-		group.ResultCount = trElems.Length() - 1
-
 		trElems.Each(func(i int, s *goquery.Selection) {
-			if totalGrabbedTranslationCount > tureng.Config.DisplayCount {
+			if totalGrabbedTranslationCount == tureng.Config.DisplayCount {
 				return
 			}
-			totalGrabbedTranslationCount += 1
+
+			// In header row there is th instead td element. So ignoring header row
+			if s.Find("td").Length() == 0 {
+				return
+			}
 
 			trans := Translation{}
 			trans.Category = s.Find("td").Eq(1).Text()
 			en := s.Find("td[lang=en]").Find("a").Text()
 			tr := s.Find("td[lang=tr]").Find("a").Text()
-			if en == "" {
-				return
-			}
+
+			group.ResultCount++
+			totalGrabbedTranslationCount++
 
 			wordTypeStr := strings.TrimSpace(s.Find("td[lang=en]").Find("i").Text())
 			switch wordTypeStr {
