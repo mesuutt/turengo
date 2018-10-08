@@ -1,7 +1,7 @@
 Turengo
 =====
 
-Translate text using [tureng.com](tureng.com) from your terminal.
+Translate text using [tureng.com](http://tureng.com) from your terminal.
 
 [![CircleCI](https://img.shields.io/circleci/project/github/mesuutt/turengo.svg?style=svg)](https://circleci.com/gh/mesuutt/turengo) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 =====
