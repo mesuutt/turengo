@@ -25,6 +25,11 @@ turengo Hello world
 [![See in action](https://asciinema.org/a/798xoun3q66mbqxpm5gmmrl07.png)](https://asciinema.org/a/798xoun3q66mbqxpm5gmmrl07?speed=1.5)
 
 
+### Environment variables
+
+`TURENGO_MAX_DISPLAY_COUNT`: Change default displayed item count instead of specifying with `-c` flag.  
+
+
 ### License
 
 MIT
