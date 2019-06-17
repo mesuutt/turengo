@@ -22,7 +22,7 @@ turengo Hello world
 
 #### Environment variables
 
-`TURENGO_DEFAULT_DISPLAY_COUNT`: Change default displayed item count instead of specifying with `-c` flag.  
+- `TURENGO_DEFAULT_DISPLAY_COUNT`: Change default displayed translation count. Default: 10  
 
 
 #### See in action
