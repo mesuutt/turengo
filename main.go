@@ -76,22 +76,20 @@ var userAgent = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:51.0) Gecko/20100101
 
 // Make request to tureng.com and return grabbed document
 func (tureng *Tureng) getDocument(text string) (*goquery.Document, error) {
-
 	url := fmt.Sprintf("http://www.tureng.com/en/turkish-english/%s", text)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-
 	req.Header.Set("User-Agent", userAgent)
 	res, err := http.DefaultClient.Do(req)
-
 	if err != nil {
 		return nil, err
 	}
+
 	defer res.Body.Close()
 
-	return goquery.NewDocumentFromResponse(res)
+	return goquery.NewDocumentFromReader(res.Body)
 }
 
 // Translate given text
@@ -123,11 +121,11 @@ func (tureng *Tureng) Translate(text string) (result Content, err error) {
 	}
 
 	totalGrabbedTranslationCount := 0
-	tables.Each(func(i int, s *goquery.Selection) {
-		group := TranslationGroup{}
+	tables.Each(func(_ int, s *goquery.Selection) {
+		var group TranslationGroup
 
 		trElems := s.Find("tbody tr").Not(".mobile-category-row").Not("[style]")
-		trElems.Each(func(i int, s *goquery.Selection) {
+		trElems.Each(func(_ int, s *goquery.Selection) {
 			if totalGrabbedTranslationCount == tureng.Config.DisplayCount {
 				return
 			}
@@ -182,7 +180,7 @@ func (tureng *Tureng) Translate(text string) (result Content, err error) {
 }
 
 func (tureng *Tureng) GetSuggestions() []string {
-	suggestions := []string{}
+	var suggestions []string
 	tureng.Document.Find(".suggestion-list a").Each(func(i int, s *goquery.Selection) {
 		suggestions = append(suggestions, s.Text())
 	})
