@@ -4,104 +4,85 @@ import (
 	"testing"
 )
 
-// TODO: @mesut. Test with mocking.
-
-var text = "brave"
+// TODO: mock website
 
 func TestDisplayCount(t *testing.T) {
 	displayCount := 2
 
-	conf := &Config{
+	params := &AppParam{
 		DisplayCount: displayCount,
+		TypeFilters:  []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN},
 	}
 
-	conf.WordTypeFilters = []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN}
+	result, _ := Translate("brave", params)
 
-	tureng := &Tureng{Config: *conf}
-	result, _ := tureng.Translate(text)
-
-	if len(result.TranslationGroups[0].Translations) != displayCount {
-		t.Errorf("Result count should not be greater than %d. %d", displayCount, len(result.TranslationGroups[0].Translations))
+	if len(result.Translations) != displayCount {
+		t.Errorf("Result count should not be greater than %d. %d", displayCount, len(result.Translations))
 	}
 }
 
 func TestTranslate(t *testing.T) {
 	displayCount := 10
 
-	conf := &Config{
+	params := &AppParam{
 		DisplayCount: displayCount,
+		TypeFilters:  []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN},
 	}
 
-	conf.WordTypeFilters = []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN}
+	result, _ := Translate("brave", params)
 
-	tureng := &Tureng{Config: *conf}
-	result, _ := tureng.Translate(text)
-
-	if len(result.TranslationGroups[0].Translations) == 0 {
-		t.Errorf("Translation count should not be greater than %d. %d", displayCount, len(result.TranslationGroups[0].Translations))
+	if len(result.Translations) == 0 {
+		t.Errorf("Translation count should not be greater than %d. %d", displayCount, len(result.Translations))
 	}
 
-	if len(result.TranslationGroups[0].Translations) == 0 {
-		t.Errorf("Translation count for '%s' should be greater than 0", text)
-	}
-}
-
-func TestGettingMeaningOfWordWithOtherTerms(t *testing.T) {
-	conf := &Config{
-		DisplayCount:    100,
-		WordTypeFilters: []WordType{VERB}, // Get only verbs
-	}
-
-	tureng := &Tureng{Config: *conf}
-	result, _ := tureng.Translate(text)
-
-	if len(result.TranslationGroups[1].Translations) == 0 {
-		t.Errorf("Other meanings of '%s' should be exist. But not found.", text)
+	if len(result.Translations) == 0 {
+		t.Error("Translation count should be greater than 0")
 	}
 }
 
 func TestWordTypeFiltering(t *testing.T) {
+	t.Run("get only verbs", func(t *testing.T) {
+		conf := &AppParam{
+			DisplayCount: 100,
+			TypeFilters:  []WordType{VERB}, // Get only verbs
+		}
 
-	conf := &Config{
-		DisplayCount:    100,
-		WordTypeFilters: []WordType{VERB}, // Get only verbs
-	}
+		result, _ := Translate("brave", conf)
 
-	tureng := &Tureng{Config: *conf}
-	result, _ := tureng.Translate(text)
+		for _, item := range result.Translations {
+			if item.Type != VERB {
+				t.Fatal("Translation count should equal to 6")
+			}
+		}
+	})
 
-	if len(result.TranslationGroups[0].Translations) != 6 {
-		t.Errorf("Translation count should equal to 6")
-	}
+	t.Run("get only adverbs", func(t *testing.T) {
+		params := &AppParam{
+			DisplayCount: 100,
+			TypeFilters:  []WordType{ADVERB}, // Get only adverbs
+		}
 
-	conf = &Config{
-		DisplayCount:    100,
-		WordTypeFilters: []WordType{ADVERB}, // Get only adverbs
-	}
-	tureng = &Tureng{Config: *conf}
-	result, _ = tureng.Translate(text)
+		result, _ := Translate("brave", params)
 
-	if len(result.TranslationGroups[0].Translations) != 0 {
-		t.Errorf("Translation count should equal to 0")
-	}
+		if len(result.Translations) != 0 {
+			t.Errorf("Translation count should equal to 0")
+		}
+	})
 }
 
 func TestGettingSuggestions(t *testing.T) {
-
-	conf := &Config{
-		DisplayCount:    100,
-		WordTypeFilters: []WordType{NOUN},
+	params := &AppParam{
+		DisplayCount: 100,
+		TypeFilters:  []WordType{NOUN},
 	}
 
-	tureng := &Tureng{Config: *conf}
-	result, _ := tureng.Translate("happyoooo")
+	result, _ := Translate("happyoooo", params)
 
-	if len(result.TranslationGroups) > 0 {
-		t.Errorf("Translation for 'happyoooo' should not be found.")
+	if len(result.Translations) > 0 {
+		t.Errorf("Translation count for 'happyoooo' should be 0.")
 	}
 
-	suggs := tureng.GetSuggestions()
-	if len(suggs) == 0 {
+	if len(result.Suggestions) == 0 {
 		t.Errorf("Should be at least one suggestion for 'happyoooo'")
 	}
 }

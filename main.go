@@ -8,14 +8,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/ryanuber/columnize"
 )
 
+const UserAgent = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0"
+
 type WordType uint8
 
-// Word type consts
 const (
 	NOUN WordType = iota + 1
 	VERB
@@ -25,36 +27,23 @@ const (
 )
 
 type Translation struct {
-	Type     WordType // Word type(VERB, NOUN, ADJACTIVE, ADVERB)
+	Type     WordType // Word type(VERB, NOUN, ADJECTIVE, ADVERB)
 	Text     string   // Translation text
 	Meaning  string   // Meaning of text
 	Category string
 }
 
-// There are two type of translation group
-// First word meaning, second meanings of word in other terms
-type TranslationGroup struct {
-	Title        string
+type PageContent struct {
+	FromLang     string
+	Text         string // Searched text
+	ResultCount  int    // Keeps found total translation count in grabbed document
 	Translations []Translation
-	ResultCount  int // Keeps found total translation count in translation group
+	Suggestions  []string
 }
 
-type Content struct {
-	FromLang          string
-	Text              string // Searched text
-	ResultCount       int    // Keeps found total translation count in grabbed document
-	TranslationGroups []TranslationGroup
-}
-
-type Config struct {
-	FromLang        string
-	DisplayCount    int // Max display count
-	WordTypeFilters []WordType
-}
-
-type Tureng struct {
-	Config   Config
-	Document *goquery.Document
+type AppParam struct {
+	DisplayCount int // Max display count
+	TypeFilters  []WordType
 }
 
 func (trans *Translation) WordTypeShortDisplay() string {
@@ -72,42 +61,19 @@ func (trans *Translation) WordTypeShortDisplay() string {
 	}
 }
 
-var userAgent = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0"
-
-// Make request to tureng.com and return grabbed document
-func (tureng *Tureng) getDocument(text string) (*goquery.Document, error) {
-	url := fmt.Sprintf("http://www.tureng.com/en/turkish-english/%s", text)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", userAgent)
-	res, err := http.DefaultClient.Do(req)
+// Translate translates given text
+func Translate(text string, params *AppParam) (*PageContent, error) {
+	doc, err := getDocument(text)
 	if err != nil {
 		return nil, err
 	}
 
-	defer res.Body.Close()
-
-	return goquery.NewDocumentFromReader(res.Body)
-}
-
-// Translate given text
-func (tureng *Tureng) Translate(text string) (result Content, err error) {
-
-	doc, err := tureng.getDocument(text)
-	tureng.Document = doc
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	result = Content{Text: text}
+	result := &PageContent{Text: text}
 
 	// Find translation language
 	result.FromLang = "en"
 
-	if doc.Find("table.searchResultsTable tbody tr").Eq(0).Find(".c2").Text() == "Turkish" {
+	if doc.Find("table.searchResultsTable tbody tr").Eq(0).Find(".c2").Text() == "Türkçe" {
 		result.FromLang = "tr"
 	}
 
@@ -117,33 +83,29 @@ func (tureng *Tureng) Translate(text string) (result Content, err error) {
 	result.ResultCount = tables.Find("tbody tr").Not(".mobile-category-row").Not("[style]").Length() - tables.Length()
 
 	if result.ResultCount <= 0 {
+		fmt.Printf("There is no translation found for '%s' \n", text)
+		result.Suggestions = extractSuggestions(doc)
 		return result, nil
 	}
 
-	totalGrabbedTranslationCount := 0
-	tables.Each(func(_ int, s *goquery.Selection) {
-		var group TranslationGroup
-
-		trElems := s.Find("tbody tr").Not(".mobile-category-row").Not("[style]")
-		trElems.Each(func(_ int, s *goquery.Selection) {
-			if totalGrabbedTranslationCount == tureng.Config.DisplayCount {
-				return
+	tables.Each(func(_ int, tableSel *goquery.Selection) {
+		trElems := tableSel.Find("tbody tr").Not(".mobile-category-row").Not("[style]")
+		trElems.EachWithBreak(func(i int, trSel *goquery.Selection) bool {
+			// Ignore first row, because it is header row
+			if i == 0 {
+				return true // continue
 			}
 
-			// In header row there is th instead td element. So ignoring header row
-			if s.Find("td").Length() == 0 {
-				return
+			if len(result.Translations) == params.DisplayCount {
+				return false
 			}
 
 			trans := Translation{}
-			trans.Category = s.Find("td").Eq(1).Text()
-			en := s.Find("td[lang=en]").Find("a").Text()
-			tr := s.Find("td[lang=tr]").Find("a").Text()
+			trans.Category = trSel.Find("td").Eq(1).Text()
+			en := trSel.Find("td[lang=en]").Find("a").Text()
+			tr := trSel.Find("td[lang=tr]").Find("a").Text()
 
-			group.ResultCount++
-			totalGrabbedTranslationCount++
-
-			wordTypeStr := strings.TrimSpace(s.Find("td[lang=en]").Find("i").Text())
+			wordTypeStr := strings.TrimSpace(trSel.Find("td[lang=en]").Find("i").Text())
 			switch wordTypeStr {
 			case "v.":
 				trans.Type = VERB
@@ -165,23 +127,54 @@ func (tureng *Tureng) Translate(text string) (result Content, err error) {
 				trans.Text = tr
 			}
 
-			for _, wordType := range tureng.Config.WordTypeFilters {
+			for _, wordType := range params.TypeFilters {
 				if trans.Type == wordType {
-					group.Translations = append(group.Translations, trans)
+					result.Translations = append(result.Translations, trans)
+					break
 				}
 			}
 
+			return true
 		})
 
-		result.TranslationGroups = append(result.TranslationGroups, group)
 	})
 
-	return
+	return result, nil
 }
 
-func (tureng *Tureng) GetSuggestions() []string {
+func main() {
+	params := getParams()
+	pageContent, err := Translate(strings.Join(flag.Args(), " "), params)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	printTranslations(pageContent)
+}
+
+func getDocument(text string) (*goquery.Document, error) {
+	url := fmt.Sprintf("http://www.tureng.com/en/turkish-english/%s", text)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", UserAgent)
+
+	client := http.Client{Timeout: 5 * time.Second}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+
+	return goquery.NewDocumentFromReader(res.Body)
+}
+
+func extractSuggestions(doc *goquery.Document) []string {
 	var suggestions []string
-	tureng.Document.Find(".suggestion-list a").Each(func(i int, s *goquery.Selection) {
+	doc.Find(".suggestion-list a").Each(func(i int, s *goquery.Selection) {
 		suggestions = append(suggestions, s.Text())
 	})
 
@@ -193,11 +186,36 @@ func printUsage() {
 	flag.PrintDefaults()
 }
 
-func main() {
+func printTranslations(pageContent *PageContent) {
+	if pageContent.ResultCount > 0 {
+		var lines []string
+		for _, item := range pageContent.Translations {
+			if item.Type == UNKNOWN {
+				lines = append(lines, fmt.Sprintf("%s | %s | %s\n", item.Category, item.Text, item.Meaning))
+			} else {
+				lines = append(lines, fmt.Sprintf("%s | %s | %s (%s)\n", item.Category, item.Text, item.Meaning, item.WordTypeShortDisplay()))
+			}
+		}
 
-	defaultDisplatCount := 10
+		fmt.Println(columnize.SimpleFormat(lines))
+		fmt.Printf("===== [ Total: %d ] =====\n", pageContent.ResultCount)
+		return
+	}
 
-	displayCount := flag.Int("c", defaultDisplatCount, "Max display count")
+	fmt.Printf("There is no translation found for '%s' \n", pageContent.Text)
+	if len(pageContent.Suggestions) > 0 {
+		fmt.Printf("\n==== Suggestions ====\n")
+		for _, item := range pageContent.Suggestions {
+			fmt.Printf("%v\n", item)
+		}
+	}
+
+}
+
+func getParams() *AppParam {
+	defaultDisplayCount := 10
+
+	displayCount := flag.Int("c", defaultDisplayCount, "Max display count")
 	includeVerbsPtr := flag.Bool("v", false, "Filter verbs")
 	includeNounsPtr := flag.Bool("n", false, "Filter nouns")
 	includeAdverbsPtr := flag.Bool("adv", false, "Filter adverbs")
@@ -211,65 +229,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	conf := &Config{
-		DisplayCount: *displayCount,
-	}
+	params := &AppParam{DisplayCount: *displayCount}
 
 	// Read displayCount from ENV if flag not specified and env var exists
-	if *displayCount == defaultDisplatCount {
+	if *displayCount == defaultDisplayCount {
 		if dc := os.Getenv("TURENGO_DEFAULT_DISPLAY_COUNT"); dc != "" {
 			i, _ := strconv.Atoi(dc)
-			conf.DisplayCount = i
+			params.DisplayCount = i
 		}
 	}
 
 	if *includeVerbsPtr {
-		conf.WordTypeFilters = append(conf.WordTypeFilters, VERB)
+		params.TypeFilters = append(params.TypeFilters, VERB)
 	}
 	if *includeNounsPtr {
-		conf.WordTypeFilters = append(conf.WordTypeFilters, NOUN)
+		params.TypeFilters = append(params.TypeFilters, NOUN)
 	}
 	if *includeAdjectivesPtr {
-		conf.WordTypeFilters = append(conf.WordTypeFilters, ADJECTIVE)
+		params.TypeFilters = append(params.TypeFilters, ADJECTIVE)
 	}
 	if *includeAdverbsPtr {
-		conf.WordTypeFilters = append(conf.WordTypeFilters, ADVERB)
+		params.TypeFilters = append(params.TypeFilters, ADVERB)
 	}
-	if len(conf.WordTypeFilters) == 0 {
-		conf.WordTypeFilters = []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN}
-	}
-
-	tureng := &Tureng{Config: *conf}
-	text := strings.Join(flag.Args(), " ")
-	pageContent, err := tureng.Translate(text)
-
-	if err != nil {
-		log.Fatal(err)
+	if len(params.TypeFilters) == 0 {
+		params.TypeFilters = []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN}
 	}
 
-	if pageContent.ResultCount == 0 {
-		fmt.Printf("There is no translation found for '%s' \n", text)
-		suggs := tureng.GetSuggestions()
-
-		if len(suggs) > 0 {
-			fmt.Printf("\n==== Suggestions ====\n")
-			for _, item := range suggs {
-				fmt.Printf("%v\n", item)
-			}
-		}
-	} else {
-		output := []string{}
-		for _, group := range pageContent.TranslationGroups {
-			for _, trans := range group.Translations {
-				if trans.Type == UNKNOWN {
-					output = append(output, fmt.Sprintf("%s | %s | %s\n", trans.Category, trans.Text, trans.Meaning))
-				} else {
-					output = append(output, fmt.Sprintf("%s | %s | %s (%s)\n", trans.Category, trans.Text, trans.Meaning, trans.WordTypeShortDisplay()))
-				}
-			}
-		}
-
-		fmt.Println(columnize.SimpleFormat(output))
-		fmt.Printf("===== [ Total: %d ] =====\n", pageContent.ResultCount)
-	}
+	return params
 }
