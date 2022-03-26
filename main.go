@@ -61,6 +61,16 @@ type PageContent struct {
 	Suggestions  []string
 }
 
+func main() {
+	flags := getFlags()
+	pageContent, err := Translate(strings.Join(flag.Args(), " "), flags)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	printTranslations(pageContent)
+}
+
 // Translate translates given text
 func Translate(text string, flags *Flags) (*PageContent, error) {
 	doc, err := getDocument(text)
@@ -140,17 +150,6 @@ func Translate(text string, flags *Flags) (*PageContent, error) {
 	})
 
 	return result, nil
-}
-
-func main() {
-	flags := getFlags()
-	pageContent, err := Translate(strings.Join(flag.Args(), " "), flags)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	printTranslations(pageContent)
 }
 
 func getDocument(text string) (*goquery.Document, error) {
