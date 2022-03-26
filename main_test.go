@@ -9,12 +9,12 @@ import (
 func TestDisplayCount(t *testing.T) {
 	displayCount := 2
 
-	params := &AppParam{
+	flags := &Flags{
 		DisplayCount: displayCount,
 		TypeFilters:  []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN},
 	}
 
-	result, _ := Translate("brave", params)
+	result, _ := Translate("brave", flags)
 
 	if len(result.Translations) != displayCount {
 		t.Errorf("Result count should not be greater than %d. %d", displayCount, len(result.Translations))
@@ -24,12 +24,12 @@ func TestDisplayCount(t *testing.T) {
 func TestTranslate(t *testing.T) {
 	displayCount := 10
 
-	params := &AppParam{
+	flags := &Flags{
 		DisplayCount: displayCount,
 		TypeFilters:  []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN},
 	}
 
-	result, _ := Translate("brave", params)
+	result, _ := Translate("brave", flags)
 
 	if len(result.Translations) == 0 {
 		t.Errorf("Translation count should not be greater than %d. %d", displayCount, len(result.Translations))
@@ -42,7 +42,7 @@ func TestTranslate(t *testing.T) {
 
 func TestWordTypeFiltering(t *testing.T) {
 	t.Run("get only verbs", func(t *testing.T) {
-		conf := &AppParam{
+		conf := &Flags{
 			DisplayCount: 100,
 			TypeFilters:  []WordType{VERB}, // Get only verbs
 		}
@@ -57,12 +57,12 @@ func TestWordTypeFiltering(t *testing.T) {
 	})
 
 	t.Run("get only adverbs", func(t *testing.T) {
-		params := &AppParam{
+		flags := &Flags{
 			DisplayCount: 100,
 			TypeFilters:  []WordType{ADVERB}, // Get only adverbs
 		}
 
-		result, _ := Translate("brave", params)
+		result, _ := Translate("brave", flags)
 
 		if len(result.Translations) != 0 {
 			t.Errorf("Translation count should equal to 0")
@@ -71,12 +71,12 @@ func TestWordTypeFiltering(t *testing.T) {
 }
 
 func TestGettingSuggestions(t *testing.T) {
-	params := &AppParam{
+	flags := &Flags{
 		DisplayCount: 100,
 		TypeFilters:  []WordType{NOUN},
 	}
 
-	result, _ := Translate("happyoooo", params)
+	result, _ := Translate("happyoooo", flags)
 
 	if len(result.Translations) > 0 {
 		t.Errorf("Translation count for 'happyoooo' should be 0.")

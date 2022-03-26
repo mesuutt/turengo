@@ -26,24 +26,16 @@ const (
 	UNKNOWN
 )
 
+type Flags struct {
+	DisplayCount int // Max display count
+	TypeFilters  []WordType
+}
+
 type Translation struct {
 	Type     WordType // Word type(VERB, NOUN, ADJECTIVE, ADVERB)
 	Text     string   // Translation text
 	Meaning  string   // Meaning of text
 	Category string
-}
-
-type PageContent struct {
-	FromLang     string
-	Text         string // Searched text
-	ResultCount  int    // Keeps found total translation count in grabbed document
-	Translations []Translation
-	Suggestions  []string
-}
-
-type AppParam struct {
-	DisplayCount int // Max display count
-	TypeFilters  []WordType
 }
 
 func (trans *Translation) WordTypeShortDisplay() string {
@@ -61,8 +53,16 @@ func (trans *Translation) WordTypeShortDisplay() string {
 	}
 }
 
+type PageContent struct {
+	FromLang     string
+	Text         string // Searched text
+	ResultCount  int    // Keeps found total translation count in grabbed document
+	Translations []Translation
+	Suggestions  []string
+}
+
 // Translate translates given text
-func Translate(text string, params *AppParam) (*PageContent, error) {
+func Translate(text string, flags *Flags) (*PageContent, error) {
 	doc, err := getDocument(text)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func Translate(text string, params *AppParam) (*PageContent, error) {
 				return true // continue
 			}
 
-			if len(result.Translations) == params.DisplayCount {
+			if len(result.Translations) == flags.DisplayCount {
 				return false
 			}
 
@@ -127,7 +127,7 @@ func Translate(text string, params *AppParam) (*PageContent, error) {
 				trans.Text = tr
 			}
 
-			for _, wordType := range params.TypeFilters {
+			for _, wordType := range flags.TypeFilters {
 				if trans.Type == wordType {
 					result.Translations = append(result.Translations, trans)
 					break
@@ -143,8 +143,8 @@ func Translate(text string, params *AppParam) (*PageContent, error) {
 }
 
 func main() {
-	params := getParams()
-	pageContent, err := Translate(strings.Join(flag.Args(), " "), params)
+	flags := getFlags()
+	pageContent, err := Translate(strings.Join(flag.Args(), " "), flags)
 
 	if err != nil {
 		log.Fatal(err)
@@ -212,7 +212,7 @@ func printTranslations(pageContent *PageContent) {
 
 }
 
-func getParams() *AppParam {
+func getFlags() *Flags {
 	defaultDisplayCount := 10
 
 	displayCount := flag.Int("c", defaultDisplayCount, "Max display count")
@@ -229,31 +229,31 @@ func getParams() *AppParam {
 		os.Exit(1)
 	}
 
-	params := &AppParam{DisplayCount: *displayCount}
+	flags := &Flags{DisplayCount: *displayCount}
 
 	// Read displayCount from ENV if flag not specified and env var exists
 	if *displayCount == defaultDisplayCount {
 		if dc := os.Getenv("TURENGO_DEFAULT_DISPLAY_COUNT"); dc != "" {
 			i, _ := strconv.Atoi(dc)
-			params.DisplayCount = i
+			flags.DisplayCount = i
 		}
 	}
 
 	if *includeVerbsPtr {
-		params.TypeFilters = append(params.TypeFilters, VERB)
+		flags.TypeFilters = append(flags.TypeFilters, VERB)
 	}
 	if *includeNounsPtr {
-		params.TypeFilters = append(params.TypeFilters, NOUN)
+		flags.TypeFilters = append(flags.TypeFilters, NOUN)
 	}
 	if *includeAdjectivesPtr {
-		params.TypeFilters = append(params.TypeFilters, ADJECTIVE)
+		flags.TypeFilters = append(flags.TypeFilters, ADJECTIVE)
 	}
 	if *includeAdverbsPtr {
-		params.TypeFilters = append(params.TypeFilters, ADVERB)
+		flags.TypeFilters = append(flags.TypeFilters, ADVERB)
 	}
-	if len(params.TypeFilters) == 0 {
-		params.TypeFilters = []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN}
+	if len(flags.TypeFilters) == 0 {
+		flags.TypeFilters = []WordType{VERB, NOUN, ADJECTIVE, ADVERB, UNKNOWN}
 	}
 
-	return params
+	return flags
 }
