@@ -38,8 +38,8 @@ type Translation struct {
 	Category string
 }
 
-func (trans *Translation) WordTypeShortDisplay() string {
-	switch trans.Type {
+func (t *Translation) WordTypeDisplay() string {
+	switch t.Type {
 	case NOUN:
 		return "n."
 	case VERB:
@@ -192,7 +192,7 @@ func printTranslations(pageContent *PageContent) {
 			if item.Type == UNKNOWN {
 				lines = append(lines, fmt.Sprintf("%s | %s | %s\n", item.Category, item.Text, item.Meaning))
 			} else {
-				lines = append(lines, fmt.Sprintf("%s | %s | %s (%s)\n", item.Category, item.Text, item.Meaning, item.WordTypeShortDisplay()))
+				lines = append(lines, fmt.Sprintf("%s | %s | %s (%s)\n", item.Category, item.Text, item.Meaning, item.WordTypeDisplay()))
 			}
 		}
 
