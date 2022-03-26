@@ -28,7 +28,6 @@ func main() {
 }
 
 func getFlags() *Flags {
-
 	displayCount := flag.Int("c", DefaultDisplayCount, "Max display count")
 	verbFlag := flag.Bool("v", false, "Filter verbs")
 	nounFlag := flag.Bool("n", false, "Filter nouns")

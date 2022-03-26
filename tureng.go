@@ -152,7 +152,6 @@ func Translate(text string, flags *Flags) (*PageContent, error) {
 
 			return true
 		})
-
 	})
 
 	return result, nil
