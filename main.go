@@ -10,7 +10,7 @@ import (
 )
 
 const DefaultDisplayCount = 10
-const DefaultDisplayEnv = "TURENGO_DEFAULT_DISPLAY_COUNT"
+const DefaultDisplayCountEnv = "TURENGO_DEFAULT_DISPLAY_COUNT"
 
 type Flags struct {
 	DisplayCount int // Max display count
@@ -50,7 +50,7 @@ func getFlags() *Flags {
 
 	// Read displayCount from ENV if flag not specified and env var exists
 	if *displayCount == DefaultDisplayCount {
-		if dc := os.Getenv(DefaultDisplayEnv); dc != "" {
+		if dc := os.Getenv(DefaultDisplayCountEnv); dc != "" {
 			i, _ := strconv.Atoi(dc)
 			flags.DisplayCount = i
 		}
